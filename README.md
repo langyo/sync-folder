@@ -50,3 +50,27 @@ sf -f https://github.com/linus/linux.git -t ./
 > Only support to synchronize Git warehouse with HTTPS.
 
 > When the Git repository is synchronized, the submission history will not be downloaded, only the latest submitted file will be pulled.
+
+- Change how files are written to the destination folder:
+
+```shell
+# Just write the content from the source folder to the destination folder.
+# It is the default option.
+sf -soft-merge ...
+# The contents of the destination folder must be exactly the same as those of the source folder, and the extra files will be removed.
+sf -full-merge
+```
+
+- Ignore synchronization of some special folders:
+
+```shell
+# Treat the folder as a git repository, and automatically ignore '.git' folder and the ignore file defined in '.gitignore' file.
+# It is the default option.
+sf -ignore-git ...
+# Ignore the specified folder and file with a regular expression.
+sf -ignore ".+\.swf$" ...
+# According to a text file to ignore the folder and file, its format requirements and '.gitignore' consistent.
+sf -ignore-file ./ignore.txt ...
+# No files are ignored.
+sf -ignore-none
+```
