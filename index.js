@@ -1,4 +1,6 @@
-const { program } = require('commander');
+const {
+	program
+} = require('commander');
 program.version('0.1.0', '-v, -version');
 
 program
@@ -26,41 +28,51 @@ const {
 	statSync
 } = require('fs');
 
-const { from, to } = opts;
+const {
+	from,
+	to,
+	watch
+} = opts;
 
 function getIgnoreDeclFile(path) {
-	if (path.test(/^(ftp)|(https?)/)) {
-		throw new Error('Network synchronization is not supported at the moment');
-	}
 	if (statSync(path).isDirectory()) {
 		return readdirSync(path).reduce(
 			(arr, name) => [
 				...arr,
 				...getIgnoreDeclFile(resolve(path, name))
 			], []);
-	}
-	else if (basename(path) === '.gitignore') {
+	} else if (basename(path) === '.gitignore') {
 		return [path]
 	}
 }
 
 const ignoreMode =
 	opts.ignoreReg && 'regExp' ||
-	opts.ignoreNone && 'none' ||
 	'default';
 const ignoreList =
 	opts.ignore ||
 	opts.ignoreList && opts.ignoreList.reduce(
-		(arr, path) => [
-			...arr,
-			readFileSync(resolve(path, 'utf-8'))
-				.split('\n').map(n => n.trim())
-		], []) ||
-	opts.ignoreReg && opts.ignoreReg.map(
-		n => new RegExp(n)
-	) ||
-	opts.ignoreNone && [] ||
-	from.reduce((arr, path) => [
+	(arr, path) => [
 		...arr,
-		...getIgnoreDeclFile(resolve(path))
-	], []);
+		readFileSync(resolve(path, 'utf-8'))
+		.split('\n').map(n => n.trim())
+	], []) ||
+	opts.ignoreReg ||
+	opts.ignoreNone && [] ||
+	from.reduce((arr, path) => {
+		if (path.test(/^(ftp)|(https?)/)) {
+			throw new Error('Network synchronization is not supported at the moment');
+		}
+		return [
+			...arr,
+			...getIgnoreDeclFile(resolve(path))
+		];
+	}, []);
+
+function verify(name) {
+	switch (ignoreMode) {
+		case 'default':
+			
+		case 'regExp':
+	}
+}
