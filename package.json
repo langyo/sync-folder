@@ -13,7 +13,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "jest ./test.js"
+    "test": "jest"
   },
   "dependencies": {
     "chalk": "^4.1.0",
