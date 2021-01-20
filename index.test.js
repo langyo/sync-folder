@@ -41,6 +41,7 @@ beforeAll(() => {
         }
         return node[lastName];
       }),
+
       writeFileSync: jest.fn((path, content) => {
         let tasks = path.split('/');
         if (tasks[0] === '') tasks.shift();
@@ -57,6 +58,26 @@ beforeAll(() => {
           node = node[name];
         }
         node[lastName] = content;
+      }),
+
+      statSync: jest.fn((path) => {
+        let tasks = path.split('/');
+        if (tasks[0] === '') tasks.shift();
+        let lastName = tasks.pop();
+        let node = storage;
+        for (const name of tasks) {
+          if (name === '.') continue;
+          if (name === '..') {
+            throw new Error('Illegal path.');
+          } 
+          if (typeof node[name] === 'undefined') {
+            throw new Error('Illegal file.');
+          }
+          node = node[name];
+        }
+        return {
+          isDirectory: () => typeof node[lastName] !== 'string'
+        };
       })
     };
   });
@@ -78,4 +99,17 @@ describe('Virtual file system test', () => {
     writeFileSync('./s1/t1/f1.txt', 'test2');
     expect(readFileSync('./s1/t1/f1.txt')).toEqual('test2');
   });
-})
+
+  it('Get status', () => {
+    const { statSync } = require('fs');
+    expect(statSync('/s1').isDirectory()).toBe(true);
+    expect(statSync('/s2').isDirectory()).toBe(true);
+    expect(statSync('/t1').isDirectory()).toBe(true);
+    expect(statSync('/s1/t1').isDirectory()).toBe(true);
+    expect(statSync('/s1/t1/f1.txt').isDirectory()).toBe(false);
+    expect(statSync('/s1/f4.xml').isDirectory()).toBe(false);
+  });
+});
+
+describe('File copy test', () => {
+});
