@@ -25,24 +25,57 @@ beforeAll(() => {
 
     return {
       readFileSync: jest.fn((path) => {
-        let tasks = path.split('/').splice(1);
+        let tasks = path.split('/');
+        if (tasks[0] === '') tasks.shift();
         let lastName = tasks.pop();
         let node = storage;
         for (const name of tasks) {
+          if (name === '.') continue;
+          if (name === '..') {
+            throw new Error('Illegal path.');
+          } 
           if (typeof node[name] === 'undefined') {
             throw new Error('Illegal file.');
           }
           node = node[name];
         }
         return node[lastName];
+      }),
+      writeFileSync: jest.fn((path, content) => {
+        let tasks = path.split('/');
+        if (tasks[0] === '') tasks.shift();
+        let lastName = tasks.pop();
+        let node = storage;
+        for (const name of tasks) {
+          if (name === '.') continue;
+          if (name === '..') {
+            throw new Error('Illegal path.');
+          } 
+          if (typeof node[name] === 'undefined') {
+            throw new Error('Illegal file.');
+          }
+          node = node[name];
+        }
+        node[lastName] = content;
       })
     };
   });
 });
 
-describe('Virtual file system testt', () => {
-  it('Write file', () => {
-    const readFileSync = require('fs').readFileSync;
+describe('Virtual file system test', () => {
+  it('Read file', () => {
+    const { readFileSync } = require('fs');
     expect(readFileSync('/s1/f4.xml')).toEqual('This is f4.');
-  })
+    expect(readFileSync('./s1/t1/f1.txt')).toEqual('This is f1.');
+  });
+
+  it('Write file', () => {
+    const {
+      readFileSync, writeFileSync
+    } = require('fs');
+    writeFileSync('/s1/f4.xml', 'test');
+    expect(readFileSync('/s1/f4.xml')).toEqual('test');
+    writeFileSync('./s1/t1/f1.txt', 'test2');
+    expect(readFileSync('./s1/t1/f1.txt')).toEqual('test2');
+  });
 })
