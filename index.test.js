@@ -1,5 +1,5 @@
-beforeAll(() => {
-  jest.mock('fs', () => {
+beforeEach(() => {
+  jest.doMock('fs', () => {
     let storage = {
       s1: {
         t1: {
@@ -23,64 +23,61 @@ beforeAll(() => {
       }
     };
 
+    function directTo(path, content) {
+      let tasks = path.split('/');
+      if (tasks[0] === '') tasks.shift();
+      let lastName = tasks.pop();
+      let node = storage;
+      for (const name of tasks) {
+        if (name === '.') continue;
+        if (name === '..') {
+          throw new Error('Illegal path.');
+        } 
+        if (typeof node[name] === 'undefined') {
+          throw new Error('Illegal file.');
+        }
+        node = node[name];
+      }
+      if (typeof content !== 'undefined') {
+        node[lastName] = content;
+      }
+      return node[lastName];
+    }
+
     return {
       readFileSync: jest.fn((path) => {
-        let tasks = path.split('/');
-        if (tasks[0] === '') tasks.shift();
-        let lastName = tasks.pop();
-        let node = storage;
-        for (const name of tasks) {
-          if (name === '.') continue;
-          if (name === '..') {
-            throw new Error('Illegal path.');
-          } 
-          if (typeof node[name] === 'undefined') {
-            throw new Error('Illegal file.');
-          }
-          node = node[name];
-        }
-        return node[lastName];
+        return directTo(path);
       }),
 
       writeFileSync: jest.fn((path, content) => {
-        let tasks = path.split('/');
-        if (tasks[0] === '') tasks.shift();
-        let lastName = tasks.pop();
-        let node = storage;
-        for (const name of tasks) {
-          if (name === '.') continue;
-          if (name === '..') {
-            throw new Error('Illegal path.');
-          } 
-          if (typeof node[name] === 'undefined') {
-            throw new Error('Illegal file.');
-          }
-          node = node[name];
-        }
-        node[lastName] = content;
+        directTo(path, content);
       }),
 
       statSync: jest.fn((path) => {
-        let tasks = path.split('/');
-        if (tasks[0] === '') tasks.shift();
-        let lastName = tasks.pop();
-        let node = storage;
-        for (const name of tasks) {
-          if (name === '.') continue;
-          if (name === '..') {
-            throw new Error('Illegal path.');
-          } 
-          if (typeof node[name] === 'undefined') {
-            throw new Error('Illegal file.');
-          }
-          node = node[name];
-        }
         return {
-          isDirectory: () => typeof node[lastName] !== 'string'
+          isDirectory: () =>
+            typeof directTo(path) !== 'string'
         };
+      }),
+
+      readdirSync: jest.fn((path) => {
+        if (typeof directTo(path) === 'string') {
+          throw new Error('Not a directory');
+        }
+        return Object.keys(directTo(path));
+      }),
+
+      rmdirSync: jest.fn(),
+      unlinkSync: jest.fn(),
+
+      copyFileSync: jest.fn((s, t) => {
+        directTo(t, directTo(s));
       })
     };
   });
+});
+afterEach(() => {
+  jest.resetModules();
 });
 
 describe('Virtual file system test', () => {
@@ -100,6 +97,14 @@ describe('Virtual file system test', () => {
     expect(readFileSync('./s1/t1/f1.txt')).toEqual('test2');
   });
 
+  it('Copy file', () => {
+    const {
+      readFileSync, copyFileSync
+    } = require('fs');
+    copyFileSync('/s1/f4.xml', '/t1/f4.xml');
+    expect(readFileSync('/t1/f4.xml')).toEqual('This is f4.')
+  });
+
   it('Get status', () => {
     const { statSync } = require('fs');
     expect(statSync('/s1').isDirectory()).toBe(true);
@@ -108,6 +113,15 @@ describe('Virtual file system test', () => {
     expect(statSync('/s1/t1').isDirectory()).toBe(true);
     expect(statSync('/s1/t1/f1.txt').isDirectory()).toBe(false);
     expect(statSync('/s1/f4.xml').isDirectory()).toBe(false);
+  });
+
+  it('Read directory', () => {
+    const { readdirSync } = require('fs');
+    expect(readdirSync('/s1')).toEqual([
+      't1', 'f4.xml', 'f5.json', '.gitignore'
+    ]);
+    expect(readdirSync('/t1')).toEqual([]);
+    expect(() => readdirSync('/s1/f4.xml')).toThrow();
   });
 });
 
