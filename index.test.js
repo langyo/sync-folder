@@ -1,77 +1,127 @@
 beforeEach(() => {
   jest.doMock('fs', () => {
-    let storage = {
+    let nodes = {
+      // The folder is represented as a mapping table.
+      // The '#' in the object points to its parent folder.
+      // '#' is the root folder.
+      '#': {
+        '#': '#',
+        s1: 's1',
+        s2: 's2',
+        t1: 't1',
+        t2: 't2'
+      },
       s1: {
-        t1: {
-          'f1.txt': 'This is f1.',
-          'f2.js': 'This is f2.',
-          'f3.js': 'This is f3.',
-          '.gitignore': 'f?.js'
-        },
-        'f4.xml': 'This is f4.',
-        'f5.json': 'This is f5.',
-        '.gitignore': '*.xml'
+        t1: 't1inside',
+        'f4.xml': 'f4',
+        'f5.json': 'f5',
+        '.gitignore': 'g1'
       },
+      f4: 'This is f4.',
+      f5: 'This is f5.',
+      g1: '*.xml',
+      t1inside: {
+        'f1.txt': 'f1',
+        'f2.js': 'f2',
+        'f3.js': 'f3',
+        '.gitignore': 'g2'
+      },
+      f1: 'This is f1.',
+      f2: 'This is f2.',
+      f3: 'This is f3.',
+      g2: 'f?.js',
       s2: {
-        'f7.xml': 'This is f7.',
-        'f8.json': 'This is f8.',
-        '.gitignore': '# There is noting'
+        'f7.xml': 'f7',
+        'f8.json': 'f8',
+        '.gitignore': 'g3'
       },
+      f7: 'This is f7.',
+      f8: 'This is f8.',
+      g3: '# There is noting',
       t1: {},
       t2: {
-        '.gitignore': '*.json'
-      }
+        '.gitignore': 'g4'
+      },
+      g4: '*.json'
     };
 
-    function directTo(path, content) {
-      let tasks = path.split('/');
-      if (tasks[0] === '') tasks.shift();
-      let lastName = tasks.pop();
-      let node = storage;
-      for (const name of tasks) {
-        if (name === '.') continue;
-        if (name === '..') {
-          throw new Error('Illegal path.');
-        } 
-        if (typeof node[name] === 'undefined') {
-          throw new Error('Illegal file.');
+    function route(path, autoFill) {
+      let paths = path.split(/[\/\\]/);
+      let key = '#';
+      const lastName = paths.pop();
+
+      for (const name of paths) {
+        if (name === '.' || name === '') {
+          continue;
         }
-        node = node[name];
+        else if (name === '..') {
+          key = nodes[key]['#'];
+        }
+        else {
+          if (typeof nodes[key][name] === 'undefined') {
+            if (autoFill) {
+              const id = require('shortid').generate();
+              nodes[key][name] = id;
+              nodes[id] = { '#': key };
+            } else {
+              throw new Error('Illegal path.');
+            }
+          }
+          // Enter the next folder.
+          key = nodes[key][name];
+        }
       }
-      if (typeof content !== 'undefined') {
-        node[lastName] = content;
+      if (typeof nodes[key][lastName] === 'undefined') {
+        if (autoFill) {
+          const id = require('shortid').generate();
+          nodes[key][lastName] = id;
+        } else {
+          throw new Error('Illegal path.');
+        }
       }
-      return node[lastName];
+      return nodes[key][lastName];
     }
 
     return {
       readFileSync: jest.fn((path) => {
-        return directTo(path);
+        const key = route(path);
+        if (typeof nodes[key] !== 'string') {
+          throw new Error('Cannot read a directory.');
+        }
+        return nodes[key];
       }),
 
       writeFileSync: jest.fn((path, content) => {
-        directTo(path, content);
+        const key = route(path, true);
+        if (typeof nodes[key] === 'object') {
+          throw new Error('Cannot write to a directory');
+        }
+        nodes[key] = content;
       }),
 
       statSync: jest.fn((path) => {
         return {
           isDirectory: () =>
-            typeof directTo(path) !== 'string'
+            typeof nodes[route(path)] !== 'string'
         };
       }),
 
       readdirSync: jest.fn((path) => {
-        if (typeof directTo(path) === 'string') {
+        const key = route(path);
+        if (typeof nodes[key] === 'string') {
           throw new Error('Not a directory');
         }
-        return Object.keys(directTo(path));
+        return Object.keys(nodes[key]);
       }),
 
       rmdirSync: jest.fn(),
       unlinkSync: jest.fn(),
 
       copyFileSync: jest.fn((s, t) => {
-        directTo(t, directTo(s));
+        if (typeof nodes[route(s)] !== 'string') {
+          throw new Error('Cannot copy a directory.');
+        }
+        nodes[route(t, true)] = nodes[route(s)];
       })
     };
   });
