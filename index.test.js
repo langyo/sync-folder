@@ -45,7 +45,7 @@ beforeEach(() => {
       g4: '*.json'
     };
 
-    function route(path, autoFill) {
+    function route(path) {
       let paths = path.split(/[\/\\]/);
       let key = '#';
       const lastName = paths.pop();
@@ -59,25 +59,43 @@ beforeEach(() => {
         }
         else {
           if (typeof nodes[key][name] === 'undefined') {
-            if (autoFill) {
-              const id = require('shortid').generate();
-              nodes[key][name] = id;
-              nodes[id] = { '#': key };
-            } else {
-              throw new Error('Illegal path.');
-            }
+            throw new Error('Illegal path.');
           }
           // Enter the next folder.
           key = nodes[key][name];
         }
       }
       if (typeof nodes[key][lastName] === 'undefined') {
-        if (autoFill) {
-          const id = require('shortid').generate();
-          nodes[key][lastName] = id;
-        } else {
-          throw new Error('Illegal path.');
+        throw new Error('Illegal path.');
+      }
+      return nodes[key][lastName];
+    }
+
+    function generate(path) {
+      let paths = path.split(/[\/\\]/);
+      let key = '#';
+      const lastName = paths.pop();
+
+      for (const name of paths) {
+        if (name === '.' || name === '') {
+          continue;
         }
+        else if (name === '..') {
+          key = nodes[key]['#'];
+        }
+        else {
+          if (typeof nodes[key][name] === 'undefined') {
+            const id = require('shortid').generate();
+            nodes[key][name] = id;
+            nodes[id] = { '#': key };
+          }
+          // Enter the next folder.
+          key = nodes[key][name];
+        }
+      }
+      if (typeof nodes[key][lastName] === 'undefined') {
+        const id = require('shortid').generate();
+        nodes[key][lastName] = id;
       }
       return nodes[key][lastName];
     }
@@ -92,7 +110,7 @@ beforeEach(() => {
       }),
 
       writeFileSync: jest.fn((path, content) => {
-        const key = route(path, true);
+        const key = generate(path);
         if (typeof nodes[key] === 'object') {
           throw new Error('Cannot write to a directory');
         }
@@ -108,7 +126,7 @@ beforeEach(() => {
 
       readdirSync: jest.fn((path) => {
         const key = route(path);
-        if (typeof nodes[key] === 'string') {
+        if (typeof nodes[key] !== 'object') {
           throw new Error('Not a directory');
         }
         return Object.keys(nodes[key]);
@@ -118,10 +136,10 @@ beforeEach(() => {
       unlinkSync: jest.fn(),
 
       copyFileSync: jest.fn((s, t) => {
-        if (typeof nodes[route(s)] !== 'string') {
+        if (typeof nodes[route(s)] === 'object') {
           throw new Error('Cannot copy a directory.');
         }
-        nodes[route(t, true)] = nodes[route(s)];
+        nodes[generate(t)] = nodes[route(s)];
       })
     };
   });
