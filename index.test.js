@@ -175,12 +175,12 @@ describe('Virtual file system test', () => {
 
   it('Get status', () => {
     const { statSync } = require('fs');
-    expect(statSync('/s1').isDirectory()).toBe(true);
-    expect(statSync('/s2').isDirectory()).toBe(true);
-    expect(statSync('/t1').isDirectory()).toBe(true);
-    expect(statSync('/s1/t1').isDirectory()).toBe(true);
-    expect(statSync('/s1/t1/f1.txt').isDirectory()).toBe(false);
-    expect(statSync('/s1/f4.xml').isDirectory()).toBe(false);
+    expect(statSync('/s1').isDirectory()).toBeTruthy();
+    expect(statSync('/s2').isDirectory()).toBeTruthy();
+    expect(statSync('/t1').isDirectory()).toBeTruthy();
+    expect(statSync('/s1/t1').isDirectory()).toBeTruthy();
+    expect(statSync('/s1/t1/f1.txt').isDirectory()).toBeFalsy();
+    expect(statSync('/s1/f4.xml').isDirectory()).toBeFalsy();
   });
 
   it('Read directory', () => {
