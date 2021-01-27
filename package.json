@@ -1,5 +1,5 @@
 {
-  "name": "sync-folder-cli",
+  "name": "sync-folder",
   "description": "The CLI for real time synchronization between different folders.",
   "author": "langyo",
   "license": "Apache-2.0",
