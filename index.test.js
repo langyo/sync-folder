@@ -5,44 +5,8 @@ beforeEach(() => {
       // The '#' in the object points to its parent folder.
       // '#' is the root folder.
       '#': {
-        '#': '#',
-        s1: 's1',
-        s2: 's2',
-        t1: 't1',
-        t2: 't2'
-      },
-      s1: {
-        t1: 't1inside',
-        'f4.xml': 'f4',
-        'f5.json': 'f5',
-        '.gitignore': 'g1'
-      },
-      f4: 'This is f4.',
-      f5: 'This is f5.',
-      g1: '*.xml',
-      t1inside: {
-        'f1.txt': 'f1',
-        'f2.js': 'f2',
-        'f3.js': 'f3',
-        '.gitignore': 'g2'
-      },
-      f1: 'This is f1.',
-      f2: 'This is f2.',
-      f3: 'This is f3.',
-      g2: 'f?.js',
-      s2: {
-        'f7.xml': 'f7',
-        'f8.json': 'f8',
-        '.gitignore': 'g3'
-      },
-      f7: 'This is f7.',
-      f8: 'This is f8.',
-      g3: '# There is noting',
-      t1: {},
-      t2: {
-        '.gitignore': 'g4'
-      },
-      g4: '*.json'
+        '#': '#'
+      }
     };
 
     function route(path) {
@@ -93,12 +57,28 @@ beforeEach(() => {
           key = nodes[key][name];
         }
       }
-      if (typeof nodes[key][lastName] === 'undefined') {
+      if (
+        typeof nodes[key][lastName] === 'undefined' &&
+        lastName !== ''
+      ) {
         const id = require('shortid').generate();
         nodes[key][lastName] = id;
       }
       return nodes[key][lastName];
     }
+
+    nodes[generate('/s1/t1/f1.txt')] = 'This is f1.';
+    nodes[generate('/s1/t1/f2.js')] = 'This is f2.';
+    nodes[generate('/s1/t1/f3.js')] = 'This is f3.';
+    nodes[generate('/s1/t1/.gitignore')] = '*.xml';
+    nodes[generate('/s1/f4.xml')] = 'This is f4.';
+    nodes[generate('/s1/f5.json')] = 'This is f5.';
+    nodes[generate('/s1/.gitignore')] = 'f?.js';
+    nodes[generate('/s2/f6.xml')] = 'This is f6.';
+    nodes[generate('/s2/f7.json')] = 'This is f7.';
+    nodes[generate('/s2/.gitignore')] = '# There is nothing';
+    generate('/t1/');
+    nodes[generate('/t2/.gitignore')] = '*.json';
 
     return {
       readFileSync: jest.fn((path) => {
@@ -129,7 +109,7 @@ beforeEach(() => {
         if (typeof nodes[key] !== 'object') {
           throw new Error('Not a directory');
         }
-        return Object.keys(nodes[key]);
+        return Object.keys(nodes[key]).filter(n => n !== '#');
       }),
 
       rmdirSync: jest.fn(),
