@@ -130,6 +130,7 @@ beforeEach(() => {
             key = nodes[key][name];
           }
         }
+
         if (typeof nodes[key] !== 'object') {
           throw Error('Not a directory.');
         }
@@ -155,7 +156,37 @@ beforeEach(() => {
         delete nodes[lastParentKey][lastName];
       }),
 
-      unlinkSync: jest.fn(),
+      unlinkSync: jest.fn(path => {
+        let paths = path.split(/[\/\\]/);
+        let key = '#';
+
+        let lastName = '#', lastParentKey = '#';
+        for (const name of paths) {
+          if (name === '.' || name === '') {
+            continue;
+          }
+          else if (name === '..') {
+            key = nodes[key]['#'];
+          }
+          else {
+            if (typeof nodes[key][name] === 'undefined') {
+              throw Error('Illegal path.');
+            }
+            // Remember the latest folder's name currently.
+            lastParentKey = key;
+            lastName = name;
+            // Enter the next folder.
+            key = nodes[key][name];
+          }
+        }
+
+        if (typeof nodes[key] !== 'string') {
+          throw Error('Not a file.');
+        }
+
+        delete nodes[key];
+        delete nodes[lastParentKey][lastName];
+      }),
 
       copyFileSync: jest.fn((s, t) => {
         if (typeof nodes[route(s)] === 'object') {
@@ -184,9 +215,9 @@ describe('Virtual file system test', () => {
     const {
       readFileSync, writeFileSync
     } = require('fs');
-    writeFileSync('/s1/f4.xml', 'test');
+    expect(() => writeFileSync('/s1/f4.xml', 'test')).not.toThrow();
     expect(readFileSync('/s1/f4.xml')).toEqual('test');
-    writeFileSync('./s1/t1/f1.txt', 'test2');
+    expect(() => writeFileSync('./s1/t1/f1.txt', 'test2')).not.toThrow();
     expect(readFileSync('./s1/t1/f1.txt')).toEqual('test2');
   });
 
@@ -194,8 +225,16 @@ describe('Virtual file system test', () => {
     const {
       readFileSync, copyFileSync
     } = require('fs');
-    copyFileSync('/s1/f4.xml', '/t1/f4.xml');
+    expect(() => copyFileSync('/s1/f4.xml', '/t1/f4.xml')).not.toThrow();
     expect(readFileSync('/t1/f4.xml')).toEqual('This is f4.')
+  });
+
+  it('Delete file', () => {
+    const {
+      readFileSync, unlinkSync
+    } = require('fs');
+    expect(() => unlinkSync('/s1/f4.xml')).not.toThrow();
+    expect(() => readFileSync('/t1/f4.xml')).toThrow();
   });
 
   it('Get status', () => {
@@ -223,7 +262,7 @@ describe('Virtual file system test', () => {
     const { readdirSync, rmdirSync } = require('fs');
     expect(() => rmdirSync('/s1/t1/')).toThrow();
     expect(() => rmdirSync('/s1/t1/', { recursive: true })).not.toThrow();
-    expect(readdirSync('/s1/')).not.toContain('t1');
+    expect(() => readdirSync('/s1/')).not.toContain('t1');
     expect(() => readdirSync('/s1/t1/')).toThrow();
     expect(() => readdirSync('/t1/')).not.toThrow();
   });
