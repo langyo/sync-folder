@@ -12,7 +12,6 @@ beforeEach(() => {
     function route(path) {
       let paths = path.split(/[\/\\]/);
       let key = '#';
-      const lastName = paths.pop();
 
       for (const name of paths) {
         if (name === '.' || name === '') {
@@ -23,22 +22,18 @@ beforeEach(() => {
         }
         else {
           if (typeof nodes[key][name] === 'undefined') {
-            throw new Error('Illegal path.');
+            throw Error('Illegal path.');
           }
           // Enter the next folder.
           key = nodes[key][name];
         }
       }
-      if (typeof nodes[key][lastName] === 'undefined') {
-        throw new Error('Illegal path.');
-      }
-      return nodes[key][lastName];
+      return key;
     }
 
     function generate(path) {
       let paths = path.split(/[\/\\]/);
       let key = '#';
-      const lastName = paths.pop();
 
       for (const name of paths) {
         if (name === '.' || name === '') {
@@ -57,14 +52,7 @@ beforeEach(() => {
           key = nodes[key][name];
         }
       }
-      if (
-        typeof nodes[key][lastName] === 'undefined' &&
-        lastName !== ''
-      ) {
-        const id = require('shortid').generate();
-        nodes[key][lastName] = id;
-      }
-      return nodes[key][lastName];
+      return key;
     }
 
     nodes[generate('/s1/t1/f1.txt')] = 'This is f1.';
@@ -84,7 +72,7 @@ beforeEach(() => {
       readFileSync: jest.fn((path) => {
         const key = route(path);
         if (typeof nodes[key] !== 'string') {
-          throw new Error('Cannot read a directory.');
+          throw Error('Cannot read a directory.');
         }
         return nodes[key];
       }),
@@ -92,7 +80,7 @@ beforeEach(() => {
       writeFileSync: jest.fn((path, content) => {
         const key = generate(path);
         if (typeof nodes[key] === 'object') {
-          throw new Error('Cannot write to a directory');
+          throw Error('Cannot write to a directory');
         }
         nodes[key] = content;
       }),
@@ -107,17 +95,71 @@ beforeEach(() => {
       readdirSync: jest.fn((path) => {
         const key = route(path);
         if (typeof nodes[key] !== 'object') {
-          throw new Error('Not a directory');
+          throw Error('Not a directory');
         }
         return Object.keys(nodes[key]).filter(n => n !== '#');
       }),
 
-      rmdirSync: jest.fn(),
+      rmdirSync: jest.fn((path, opts = {}) => {
+        let paths = path.split(/[\/\\]/);
+        let key = '#';
+
+        opts = {
+          maxRetry: 0,
+          recursive: false,
+          retryDelay: 100,
+          ...opts
+        };
+
+        let lastName = '#', lastParentKey = '#';
+        for (const name of paths) {
+          if (name === '.' || name === '') {
+            continue;
+          }
+          else if (name === '..') {
+            key = nodes[key]['#'];
+          }
+          else {
+            if (typeof nodes[key][name] === 'undefined') {
+              throw Error('Illegal path.');
+            }
+            // Remember the latest folder's name currently.
+            lastParentKey = key;
+            lastName = name;
+            // Enter the next folder.
+            key = nodes[key][name];
+          }
+        }
+        if (typeof nodes[key] !== 'object') {
+          throw Error('Not a directory.');
+        }
+
+        if (opts.recursive) {
+          function dfs(key) {
+            if (typeof nodes[key] === 'object') {
+              for (const name of Object.keys(nodes[key])) {
+                if (name !== '#') {
+                  dfs(nodes[key][name]);
+                }
+              }
+            }
+            delete nodes[key];
+          }
+          dfs(key);
+        } else {
+          if (Object.keys(nodes[key]) !== ['#']) {
+            throw Error('The directory is not empty.');
+          }
+          delete nodes[key];
+        }
+        delete nodes[lastParentKey][lastName];
+      }),
+
       unlinkSync: jest.fn(),
 
       copyFileSync: jest.fn((s, t) => {
         if (typeof nodes[route(s)] === 'object') {
-          throw new Error('Cannot copy a directory.');
+          throw Error('Cannot copy a directory.');
         }
         nodes[generate(t)] = nodes[route(s)];
       })
@@ -133,6 +175,9 @@ describe('Virtual file system test', () => {
     const { readFileSync } = require('fs');
     expect(readFileSync('/s1/f4.xml')).toEqual('This is f4.');
     expect(readFileSync('./s1/t1/f1.txt')).toEqual('This is f1.');
+    expect(readFileSync('/s1/t1/../f4.xml')).toEqual('This is f4.');
+    expect(readFileSync('/s1/t1/..//f4.xml')).toEqual('This is f4.');
+    expect(readFileSync('/s1/t1/.././f4.xml')).toEqual('This is f4.');
   });
 
   it('Write file', () => {
@@ -169,7 +214,18 @@ describe('Virtual file system test', () => {
       't1', 'f4.xml', 'f5.json', '.gitignore'
     ]);
     expect(readdirSync('/t1')).toEqual([]);
+    expect(readdirSync('/t1/..//t1')).toEqual([]);
+    expect(readdirSync('/t1/.././t1')).toEqual([]);
     expect(() => readdirSync('/s1/f4.xml')).toThrow();
+  });
+
+  it('Delete directory', () => {
+    const { readdirSync, rmdirSync } = require('fs');
+    expect(() => rmdirSync('/s1/t1/')).toThrow();
+    expect(() => rmdirSync('/s1/t1/', { recursive: true })).not.toThrow();
+    expect(readdirSync('/s1/')).not.toContain('t1');
+    expect(() => readdirSync('/s1/t1/')).toThrow();
+    expect(() => readdirSync('/t1/')).not.toThrow();
   });
 });
 
