@@ -5,13 +5,13 @@ It is a command line tool for real time synchronization between different folder
 ## Install
 
 ```shell
-npm install sync-folder-cli -g
+npm install sync-folder -g
 ```
 
 Or if you want to use Yarn:
 
 ```shell
-yarn global install sync-folder-cli
+yarn global install sync-folder
 ```
 
 ## Usage
