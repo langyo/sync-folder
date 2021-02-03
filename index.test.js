@@ -21,7 +21,7 @@ beforeEach(() => {
           key = nodes[key]['#'];
         }
         else {
-          if (typeof nodes[key][name] === 'undefined') {
+          if (!nodes[key][name]) {
             throw Error('Illegal path.');
           }
           // Enter the next folder.
@@ -43,7 +43,7 @@ beforeEach(() => {
           key = nodes[key]['#'];
         }
         else {
-          if (typeof nodes[key][name] === 'undefined') {
+          if (!nodes[key][name]) {
             const id = require('shortid').generate();
             nodes[key][name] = id;
             nodes[id] = { '#': key };
@@ -120,7 +120,7 @@ beforeEach(() => {
             key = nodes[key]['#'];
           }
           else {
-            if (typeof nodes[key][name] === 'undefined') {
+            if (!nodes[key][name]) {
               throw Error('Illegal path.');
             }
             // Remember the latest folder's name currently.
@@ -169,7 +169,7 @@ beforeEach(() => {
             key = nodes[key]['#'];
           }
           else {
-            if (typeof nodes[key][name] === 'undefined') {
+            if (!nodes[key][name]) {
               throw Error('Illegal path.');
             }
             // Remember the latest folder's name currently.
